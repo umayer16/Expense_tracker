@@ -1,25 +1,23 @@
 // ===============================
-// Hostel Expense Tracker with Login
+// Hostel Expense Tracker with Login + Fixed Charts
 // ===============================
 
-// --- Global Variables ---
-let currentUser = null;         // Logged-in user's email
-let expenses = [];              // Current user's expense list
-let editIndex = null;           // For tracking edits
+let currentUser = null;
+let expenses = [];
+let editIndex = null;
 
-// --- Helper: LocalStorage Key for Each User ---
+// --- Helper ---
 function userKey() {
   return `expenses_${currentUser}`;
 }
 
-// --- Save Expenses for Current User ---
+// --- Save / Load ---
 function saveExpenses() {
   if (currentUser) {
     localStorage.setItem(userKey(), JSON.stringify(expenses));
   }
 }
 
-// --- Load Expenses for Current User ---
 function loadExpenses() {
   if (currentUser) {
     expenses = JSON.parse(localStorage.getItem(userKey()) || "[]");
@@ -28,13 +26,10 @@ function loadExpenses() {
   }
 }
 
-// --- LOGIN / LOGOUT SYSTEM ---
+// --- LOGIN / LOGOUT ---
 function login() {
   const email = document.getElementById("emailInput").value.trim();
-  if (!email) {
-    alert("Please enter a valid email.");
-    return;
-  }
+  if (!email) return alert("Please enter your email.");
 
   currentUser = email.toLowerCase();
   localStorage.setItem("currentUser", currentUser);
@@ -53,12 +48,11 @@ function logout() {
   localStorage.removeItem("currentUser");
   currentUser = null;
   expenses = [];
-
   document.getElementById("loginSection").style.display = "block";
   document.getElementById("appSection").style.display = "none";
 }
 
-// --- Initialize if user already logged in ---
+// --- Auto-login if session exists ---
 window.onload = function() {
   const savedUser = localStorage.getItem("currentUser");
   if (savedUser) {
@@ -73,19 +67,15 @@ window.onload = function() {
   }
 };
 
-// --- Add or Update Expense ---
+// --- Add / Edit / Delete ---
 function addExpense() {
-  const category = document.getElementById("category").value;
+  const category = document.getElementById("category").value.trim();
   const amount = parseFloat(document.getElementById("amount").value);
   const date = document.getElementById("date").value;
 
-  if (!category || !amount || !date) {
-    alert("Please fill all fields.");
-    return;
-  }
+  if (!category || isNaN(amount) || !date) return alert("Fill all fields correctly.");
 
   if (editIndex !== null) {
-    // Update existing expense
     expenses[editIndex] = { category, amount, date };
     editIndex = null;
     document.querySelector('button[onclick="addExpense()"]').innerText = "Add Expense";
@@ -98,38 +88,11 @@ function addExpense() {
   updateSummary();
   drawCharts();
 
-  // Clear inputs
   document.getElementById("category").value = "";
   document.getElementById("amount").value = "";
   document.getElementById("date").value = "";
 }
 
-// --- Display Expenses in Table ---
-function displayExpenses() {
-  const table = document.getElementById("expenseTable");
-  table.innerHTML = `
-    <tr>
-      <th>Date</th>
-      <th>Category</th>
-      <th>Amount</th>
-      <th>Actions</th>
-    </tr>
-  `;
-
-  expenses.forEach((e, index) => {
-    const row = table.insertRow();
-    row.insertCell(0).innerText = e.date;
-    row.insertCell(1).innerText = e.category;
-    row.insertCell(2).innerText = e.amount.toFixed(2);
-    const actionsCell = row.insertCell(3);
-    actionsCell.innerHTML = `
-      <button onclick="editExpense(${index})">Edit</button>
-      <button onclick="deleteExpense(${index})">Delete</button>
-    `;
-  });
-}
-
-// --- Edit an Expense ---
 function editExpense(index) {
   const e = expenses[index];
   document.getElementById("category").value = e.category;
@@ -139,9 +102,8 @@ function editExpense(index) {
   document.querySelector('button[onclick="addExpense()"]').innerText = "Update Expense";
 }
 
-// --- Delete an Expense ---
 function deleteExpense(index) {
-  if (confirm("Are you sure you want to delete this expense?")) {
+  if (confirm("Delete this expense?")) {
     expenses.splice(index, 1);
     saveExpenses();
     displayExpenses();
@@ -150,21 +112,19 @@ function deleteExpense(index) {
   }
 }
 
-// --- Summarize by Category ---
+// --- Summaries ---
 function summarize() {
   const summary = {};
   expenses.forEach(e => summary[e.category] = (summary[e.category] || 0) + e.amount);
   return summary;
 }
 
-// --- Total Expenses by Date ---
 function expensesOverTime() {
   const daily = {};
   expenses.forEach(e => daily[e.date] = (daily[e.date] || 0) + e.amount);
   return Object.fromEntries(Object.entries(daily).sort());
 }
 
-// --- Update Summary List ---
 function updateSummary() {
   const summary = summarize();
   const ul = document.getElementById("summaryList");
@@ -176,20 +136,44 @@ function updateSummary() {
   }
 }
 
-// --- Draw All Charts ---
+// --- Display Table ---
+function displayExpenses() {
+  const table = document.getElementById("expenseTable");
+  table.innerHTML = `
+    <tr>
+      <th>Date</th>
+      <th>Category</th>
+      <th>Amount</th>
+      <th>Actions</th>
+    </tr>
+  `;
+  expenses.forEach((e, i) => {
+    const row = table.insertRow();
+    row.insertCell(0).innerText = e.date;
+    row.insertCell(1).innerText = e.category;
+    row.insertCell(2).innerText = e.amount.toFixed(2);
+    row.insertCell(3).innerHTML = `
+      <button onclick="editExpense(${i})">Edit</button>
+      <button onclick="deleteExpense(${i})">Delete</button>
+    `;
+  });
+}
+
+// --- Draw Charts ---
 function drawCharts() {
+  if (!expenses.length) return; // Avoid errors if empty
+
   const sum = summarize();
   const categories = Object.keys(sum);
   const amounts = Object.values(sum);
-
   const daily = expensesOverTime();
   const dates = Object.keys(daily);
   const totals = Object.values(daily);
 
-  if (window.barChart) window.barChart.destroy();
-  if (window.pieChart) window.pieChart.destroy();
-  if (window.lineChart) window.lineChart.destroy();
-  if (window.scatterChart) window.scatterChart.destroy();
+  // Destroy previous charts
+  ['barChart', 'pieChart', 'lineChart', 'scatterChart'].forEach(id => {
+    if (window[id]) window[id].destroy();
+  });
 
   // Bar Chart
   const barCtx = document.getElementById('barChart').getContext('2d');
@@ -202,7 +186,8 @@ function drawCharts() {
         data: amounts,
         backgroundColor: 'skyblue'
       }]
-    }
+    },
+    options: { responsive: true }
   });
 
   // Pie Chart
@@ -215,30 +200,32 @@ function drawCharts() {
         data: amounts,
         backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40']
       }]
-    }
+    },
+    options: { responsive: true }
   });
 
-  // Line Chart (Expenses Over Time)
+  // Line Chart
   const lineCtx = document.getElementById('lineChart').getContext('2d');
   window.lineChart = new Chart(lineCtx, {
     type: 'line',
     data: {
       labels: dates,
       datasets: [{
-        label: 'Expenses Over Time',
+        label: 'Total Expenses Over Time',
         data: totals,
         borderColor: 'green',
         fill: false,
         tension: 0.3
       }]
-    }
+    },
+    options: { responsive: true }
   });
 
-  // NEW Scatter Chart (Amount vs Date)
+  // Scatter Chart (Amount vs Date)
   const scatterCtx = document.getElementById('scatterChart').getContext('2d');
   const scatterData = expenses.map(e => ({
     x: e.amount,
-    y: new Date(e.date).getTime()
+    y: e.date
   }));
 
   window.scatterChart = new Chart(scatterCtx, {
@@ -251,18 +238,19 @@ function drawCharts() {
       }]
     },
     options: {
+      responsive: true,
       scales: {
         x: {
           title: { display: true, text: 'Amount Spent' }
         },
         y: {
-          title: { display: true, text: 'Date' },
-          ticks: {
-            callback: function(value) {
-              const d = new Date(value);
-              return `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()}`;
-            }
-          }
+          type: 'time',
+          time: {
+            unit: 'day',
+            tooltipFormat: 'dd MMM yyyy',
+            displayFormats: { day: 'dd MMM' }
+          },
+          title: { display: true, text: 'Date' }
         }
       }
     }
