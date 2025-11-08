@@ -1,17 +1,16 @@
 // ===============================
-// Hostel Expense Tracker with Login + Fixed Charts
+// Hostel Expense Tracker (Fixed Charts + Login)
 // ===============================
 
 let currentUser = null;
 let expenses = [];
 let editIndex = null;
 
-// --- Helper ---
+// ---------------------- Helpers ---------------------- //
 function userKey() {
   return `expenses_${currentUser}`;
 }
 
-// --- Save / Load ---
 function saveExpenses() {
   if (currentUser) {
     localStorage.setItem(userKey(), JSON.stringify(expenses));
@@ -26,7 +25,7 @@ function loadExpenses() {
   }
 }
 
-// --- LOGIN / LOGOUT ---
+// ---------------------- Login System ---------------------- //
 function login() {
   const email = document.getElementById("emailInput").value.trim();
   if (!email) return alert("Please enter your email.");
@@ -52,8 +51,8 @@ function logout() {
   document.getElementById("appSection").style.display = "none";
 }
 
-// --- Auto-login if session exists ---
-window.onload = function() {
+// Auto-login if already logged in
+window.onload = () => {
   const savedUser = localStorage.getItem("currentUser");
   if (savedUser) {
     currentUser = savedUser;
@@ -67,13 +66,16 @@ window.onload = function() {
   }
 };
 
-// --- Add / Edit / Delete ---
+// ---------------------- Expense CRUD ---------------------- //
 function addExpense() {
   const category = document.getElementById("category").value.trim();
   const amount = parseFloat(document.getElementById("amount").value);
   const date = document.getElementById("date").value;
 
-  if (!category || isNaN(amount) || !date) return alert("Fill all fields correctly.");
+  if (!category || isNaN(amount) || !date) {
+    alert("Please fill in all fields correctly.");
+    return;
+  }
 
   if (editIndex !== null) {
     expenses[editIndex] = { category, amount, date };
@@ -112,7 +114,7 @@ function deleteExpense(index) {
   }
 }
 
-// --- Summaries ---
+// ---------------------- Summaries ---------------------- //
 function summarize() {
   const summary = {};
   expenses.forEach(e => summary[e.category] = (summary[e.category] || 0) + e.amount);
@@ -136,7 +138,7 @@ function updateSummary() {
   }
 }
 
-// --- Display Table ---
+// ---------------------- Display Table ---------------------- //
 function displayExpenses() {
   const table = document.getElementById("expenseTable");
   table.innerHTML = `
@@ -159,9 +161,9 @@ function displayExpenses() {
   });
 }
 
-// --- Draw Charts ---
+// ---------------------- Draw Charts ---------------------- //
 function drawCharts() {
-  if (!expenses.length) return; // Avoid errors if empty
+  if (!expenses.length) return; // Skip if empty
 
   const sum = summarize();
   const categories = Object.keys(sum);
@@ -170,50 +172,50 @@ function drawCharts() {
   const dates = Object.keys(daily);
   const totals = Object.values(daily);
 
-  // Destroy previous charts
+  // Destroy old charts
   ['barChart', 'pieChart', 'lineChart', 'scatterChart'].forEach(id => {
     if (window[id]) window[id].destroy();
   });
 
   // Bar Chart
-  const barCtx = document.getElementById('barChart').getContext('2d');
+  const barCtx = document.getElementById("barChart").getContext("2d");
   window.barChart = new Chart(barCtx, {
-    type: 'bar',
+    type: "bar",
     data: {
       labels: categories,
       datasets: [{
-        label: 'Expenses by Category',
+        label: "Expenses by Category",
         data: amounts,
-        backgroundColor: 'skyblue'
+        backgroundColor: "skyblue"
       }]
     },
     options: { responsive: true }
   });
 
   // Pie Chart
-  const pieCtx = document.getElementById('pieChart').getContext('2d');
+  const pieCtx = document.getElementById("pieChart").getContext("2d");
   window.pieChart = new Chart(pieCtx, {
-    type: 'pie',
+    type: "pie",
     data: {
       labels: categories,
       datasets: [{
         data: amounts,
-        backgroundColor: ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40']
+        backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40"]
       }]
     },
     options: { responsive: true }
   });
 
-  // Line Chart
-  const lineCtx = document.getElementById('lineChart').getContext('2d');
+  // Line Chart (Expenses Over Time)
+  const lineCtx = document.getElementById("lineChart").getContext("2d");
   window.lineChart = new Chart(lineCtx, {
-    type: 'line',
+    type: "line",
     data: {
       labels: dates,
       datasets: [{
-        label: 'Total Expenses Over Time',
+        label: "Total Expenses Over Time",
         data: totals,
-        borderColor: 'green',
+        borderColor: "green",
         fill: false,
         tension: 0.3
       }]
@@ -222,37 +224,35 @@ function drawCharts() {
   });
 
   // Scatter Chart (Amount vs Date)
-  const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+  const scatterCtx = document.getElementById("scatterChart").getContext("2d");
   const scatterData = expenses.map(e => ({
     x: e.amount,
     y: e.date
   }));
 
   window.scatterChart = new Chart(scatterCtx, {
-    type: 'scatter',
+    type: "scatter",
     data: {
       datasets: [{
-        label: 'Amount vs Date',
+        label: "Amount vs Date",
         data: scatterData,
-        backgroundColor: 'orange'
+        backgroundColor: "orange"
       }]
     },
     options: {
       responsive: true,
       scales: {
         x: {
-          title: { display: true, text: 'Amount Spent' }
+          title: { display: true, text: "Amount Spent" }
         },
         y: {
-          type: 'time',
-          time: {
-            unit: 'day',
-            tooltipFormat: 'dd MMM yyyy',
-            displayFormats: { day: 'dd MMM' }
-          },
-          title: { display: true, text: 'Date' }
+          type: "category", // simpler & compatible
+          labels: [...new Set(expenses.map(e => e.date))],
+          title: { display: true, text: "Date" }
         }
       }
     }
   });
 }
+
+
